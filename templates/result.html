@@ -1,0 +1,30 @@
+
+ <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Sent</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Emails Sent Successfully</h1>
+      <p>
+        The marketing email has been sent to
+        <strong>{{ recipients|length }}</strong> recipient{{ 's' if recipients|length > 1 }}.
+      </p>
+      <h2>Subject</h2>
+      <p>{{ subject }}</p>
+      <h2>Email Body</h2>
+      <pre class="email-body">{{ body }}</pre>
+      <h2>Recipients</h2>
+      <ul class="recipients">
+        {% for email in recipients %}
+        <li>{{ email }}</li>
+        {% endfor %}
+      </ul>
+      <p><a href="{{ url_for('index') }}" class="btn">Send another email</a></p>
+    </div>
+  </body>
+</html>

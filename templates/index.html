@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Marketing Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Email Marketing Tool</h1>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="messages">
+        {% for category, message in messages %}
+        <div class="message {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      {% if preview %}
+        <h2>Preview</h2>
+        <p><strong>Subject:</strong> {{ subject }}</p>
+        <h3>Email Body</h3>
+        <pre class="email-body">{{ body }}</pre>
+
+        <p><strong>Recipients:</strong> {{ recipients|length }}</p>
+        <details>
+          <summary>Show recipients</summary>
+          <ul class="recipients">
+            {% for e in recipients %}
+            <li>{{ e }}</li>
+            {% endfor %}
+          </ul>
+        </details>
+
+        <!-- Approve and send -->
+        <form method="post">
+          <input type="hidden" name="action" value="send" />
+          <button type="submit" class="btn">Approve and Send</button>
+        </form>
+
+        <!-- Try again -->
+        <p style="margin-top:12px;">
+          Not happy with this email?
+          <a class="btn" href="{{ url_for('reset') }}">Try again</a>
+        </p>
+
+      {% else %}
+        <p>Please enter a short description of the product you would like to write an Email.</p>
+
+        <form action="{{ url_for('index') }}" method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="generate" />
+          <label for="prompt">Email prompt:</label><br />
+          <textarea id="prompt" name="prompt" rows="5"
+            placeholder="Describe what the email should be about..." required></textarea><br />
+
+          <label for="csv_file">CSV file of email addresses:</label><br />
+          <input type="file" id="csv_file" name="csv_file" accept=".csv" required />
+          <br />
+          <button type="submit" class="btn">Generate Preview</button>
+        </form>
+      {% endif %}
+    </div>
+  </body>
+</html>

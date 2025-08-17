@@ -1,0 +1,23 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+
+# Secrets
+.env
+.env.*
+
+# Local data
+uploads/
+*.sqlite3
+*.log
+
+# Editor junk (optional)
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

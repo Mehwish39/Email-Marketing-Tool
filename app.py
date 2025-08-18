@@ -14,7 +14,7 @@ except Exception:
     pass
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "Techinoid Email Marketing")
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 # list of recipient emails
 INMEM_RECIPIENTS = {}

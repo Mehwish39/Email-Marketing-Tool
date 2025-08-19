@@ -26,7 +26,7 @@ def index():
       - Otherwise show the compose form.
     POST actions:
       - generate: create a draft (subject, body) from prompt, parse CSV to recipients, show editable preview.
-      - update: accept edited subject/body from preview, keep draft in session, re-render preview.
+      - remove: remove selected recipients from the in-memory list and re-render the preview.
       - send: send the edited or original draft to recipients, then clear state and show result page.
     """
     if request.method == "GET":
@@ -80,29 +80,42 @@ def index():
             recipients=recipients,
         )
 
-    if action == "update":
-        # User edited the draft in the preview form; keep changes in session and re-render preview
-        edited_subject = (request.form.get("subject") or "").strip()
-        edited_body = (request.form.get("body") or "").strip()
+    if action == "remove":
+        # Remove selected recipients by value. If duplicates exist, all matching values are removed.
         token = session.get("recipients_token")
+        if not token or token not in INMEM_RECIPIENTS:
+            flash("No recipients to manage. Please start again.", "error")
+            session.clear()
+            return redirect(url_for("index"))
+
+        selected = request.form.getlist("remove[]") or request.form.getlist("remove")
         recipients = INMEM_RECIPIENTS.get(token, [])
 
-        if not edited_subject or not edited_body:
-            flash("Subject and body cannot be empty.", "error")
-            # Fall back to whatever is in session if user cleared the fields
-            edited_subject = session.get("subject", "")
-            edited_body = session.get("body", "")
+        if not selected:
+            flash("No addresses selected to remove.", "info")
         else:
-            session["subject"] = edited_subject
-            session["body"] = edited_body
-            flash("Preview updated.", "info")
+            new_list = [e for e in recipients if e not in selected]
+            removed_count = len(recipients) - len(new_list)
+            INMEM_RECIPIENTS[token] = new_list
+            if removed_count > 0:
+                flash(f"Removed {removed_count} address(es).", "info")
+            else:
+                flash("No matching addresses found to remove.", "info")
 
+            # If list is now empty, clear token and send user back to compose
+            if not new_list:
+                INMEM_RECIPIENTS.pop(token, None)
+                session.pop("recipients_token", None)
+                flash("All recipients removed. Please upload a new CSV.", "error")
+                return redirect(url_for("index"))
+
+        # Re-render preview with current draft and updated recipients
         return render_template(
             "index.html",
             preview=True,
-            subject=edited_subject,
-            body=edited_body,
-            recipients=recipients,
+            subject=session.get("subject", ""),
+            body=session.get("body", ""),
+            recipients=INMEM_RECIPIENTS.get(token, []),
         )
 
     if action == "send":

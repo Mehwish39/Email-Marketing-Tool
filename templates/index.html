@@ -22,28 +22,42 @@
 
       {% if preview %}
         <h2>Preview</h2>
-        <form method="post" action="{{ url_for('index') }}">
+
+        <!-- Approve form: subject + body are editable -->
+        <form method="post" action="{{ url_for('index') }}" style="margin-bottom:16px;">
           <label for="subject"><strong>Subject:</strong></label>
           <input id="subject" name="subject" type="text" required value="{{ subject }}" />
 
           <h3>Email Body</h3>
           <textarea name="body" rows="14" class="email-body" required>{{ body }}</textarea>
 
-          <p><strong>Recipients:</strong> {{ recipients|length }}</p>
-          <details>
-            <summary>Show recipients</summary>
-            <ul class="recipients">
-              {% for e in recipients %}
-                <li>{{ e }}</li>
-              {% endfor %}
-            </ul>
-          </details>
-
           <div style="display:flex; gap:8px; margin-top:12px;">
             <!-- Approve and send edited content -->
             <button type="submit" name="action" value="send" class="btn">Approve and Send</button>
           </div>
         </form>
+
+        <!-- Recipient manager: remove one or more before sending -->
+        <section>
+          <p><strong>Recipients:</strong> {{ recipients|length }}</p>
+          <form method="post" action="{{ url_for('index') }}">
+            <input type="hidden" name="action" value="remove" />
+            <details open>
+              <summary>Manage recipients</summary>
+              <ul class="recipients">
+                {% for e in recipients %}
+                  <li>
+                    <label>
+                      <input type="checkbox" name="remove[]" value="{{ e }}" />
+                      {{ e }}
+                    </label>
+                  </li>
+                {% endfor %}
+              </ul>
+            </details>
+            <button type="submit" class="btn btn-secondary" style="margin-top:8px;">Remove selected</button>
+          </form>
+        </section>
 
         <p style="margin-top:12px;">
           Not happy with this email?

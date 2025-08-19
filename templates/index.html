@@ -53,32 +53,6 @@
           Not happy with this email?
           <a class="btn" href="{{ url_for('reset') }}">Start over</a>
         </p>
-        <!-- <h2>Preview</h2>
-        <p><strong>Subject:</strong> {{ subject }}</p>
-        <h3>Email Body</h3>
-        <pre class="email-body">{{ body }}</pre>
-
-        <p><strong>Recipients:</strong> {{ recipients|length }}</p>
-        <details>
-          <summary>Show recipients</summary>
-          <ul class="recipients">
-            {% for e in recipients %}
-            <li>{{ e }}</li>
-            {% endfor %}
-          </ul>
-        </details>
-
-        Approve and send
-        <form method="post">
-          <input type="hidden" name="action" value="send" />
-          <button type="submit" class="btn">Approve and Send</button>
-        </form>
-
-        Try again
-        <p style="margin-top:12px;">
-          Not happy with this email?
-          <a class="btn" href="{{ url_for('reset') }}">Try again</a>
-        </p> -->
 
       {% else %}
         <p>Please enter a short description of the product you would like to write an Email.</p>

@@ -1,11 +1,9 @@
-
 import os
 from uuid import uuid4
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
 from utils.email_utils import generate_email            # must return (subject, body)
 from utils.send_email import read_emails, send_emails   # read_emails must accept file-like objects
-
 
 try:
     from dotenv import load_dotenv
@@ -16,52 +14,40 @@ except Exception:
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# list of recipient emails
+# In-memory store of recipient lists keyed by a short token
 INMEM_RECIPIENTS = {}
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     """
-    GET: show form
-    POST action=generate: read recipients from uploaded file in-memory, generate subject+body, show preview
-    POST action=send: send to recipients stored in-memory by token, then clear everything
+    GET:
+      - If a draft exists in session and recipients are in memory, show the preview with current subject/body.
+      - Otherwise show the compose form.
+    POST actions:
+      - generate: create a draft (subject, body) from prompt, parse CSV to recipients, show editable preview.
+      - update: accept edited subject/body from preview, keep draft in session, re-render preview.
+      - send: send the edited or original draft to recipients, then clear state and show result page.
     """
-    if request.method == "POST":
-        action = request.form.get("action", "generate")
-
-        if action == "send":
-            subject = session.get("subject")
-            body = session.get("body")
-            token = session.get("recipients_token")
-
-            if not subject or not body or not token:
-                flash("Nothing to send. Please start again.", "error")
-                return redirect(url_for("index"))
-
-            # Get recipients from RAM and remove them to avoid leaks
-            recipients = INMEM_RECIPIENTS.pop(token, [])
-
-            if not recipients:
-                flash("No recipients found for this session. Please try again.", "error")
-                session.clear()
-                return redirect(url_for("index"))
-
-            sent = send_emails(subject=subject, body=body, recipients=recipients)
-
-            # Clear the session since we are done
-            session.clear()
-
-            # Show confirmation page
+    if request.method == "GET":
+        subject = session.get("subject")
+        body = session.get("body")
+        token = session.get("recipients_token")
+        recipients = INMEM_RECIPIENTS.get(token, [])
+        if subject and body and recipients:
             return render_template(
-                "result.html",
+                "index.html",
+                preview=True,
                 subject=subject,
                 body=body,
                 recipients=recipients,
-                sent=sent,
             )
+        return render_template("index.html", preview=False)
 
-        # action == "generate"
+    # POST
+    action = request.form.get("action", "generate")
+
+    if action == "generate":
         prompt_text = (request.form.get("prompt") or "").strip()
         uploaded = request.files.get("csv_file")
 
@@ -69,26 +55,23 @@ def index():
             flash("Please provide a prompt and a CSV file.", "error")
             return redirect(url_for("index"))
 
-        # Generate subject and body from the prompt
+        # 1) Generate draft from the model
         subject, body = generate_email(prompt_text)
 
-        # Read recipients directly from the uploaded file object (no saving)
+        # 2) Read recipients directly from the uploaded file object (no saving)
         recipients = read_emails(uploaded)
-
         if not recipients:
             flash("No valid email addresses were found in the CSV.", "error")
             return redirect(url_for("index"))
 
-        # Keep recipients only in memory, referenced by a short token
+        # Store recipients in memory under a short token and keep small fields in session
         token = uuid4().hex[:12]
         INMEM_RECIPIENTS[token] = recipients
-
-        # Keep only small items in session
+        session["recipients_token"] = token
         session["subject"] = subject
         session["body"] = body
-        session["recipients_token"] = token
 
-        # Render preview on the same page
+        # Show editable preview
         return render_template(
             "index.html",
             preview=True,
@@ -97,8 +80,64 @@ def index():
             recipients=recipients,
         )
 
-    # GET request
-    return render_template("index.html", preview=False)
+    if action == "update":
+        # User edited the draft in the preview form; keep changes in session and re-render preview
+        edited_subject = (request.form.get("subject") or "").strip()
+        edited_body = (request.form.get("body") or "").strip()
+        token = session.get("recipients_token")
+        recipients = INMEM_RECIPIENTS.get(token, [])
+
+        if not edited_subject or not edited_body:
+            flash("Subject and body cannot be empty.", "error")
+            # Fall back to whatever is in session if user cleared the fields
+            edited_subject = session.get("subject", "")
+            edited_body = session.get("body", "")
+        else:
+            session["subject"] = edited_subject
+            session["body"] = edited_body
+            flash("Preview updated.", "info")
+
+        return render_template(
+            "index.html",
+            preview=True,
+            subject=edited_subject,
+            body=edited_body,
+            recipients=recipients,
+        )
+
+    if action == "send":
+        # Prefer values posted from the preview form; fall back to session draft
+        subject = (request.form.get("subject") or session.get("subject") or "").strip()
+        body = (request.form.get("body") or session.get("body") or "").strip()
+        token = session.get("recipients_token")
+
+        if not subject or not body or not token:
+            flash("Nothing to send. Please start again.", "error")
+            return redirect(url_for("index"))
+
+        # Pop recipients from memory to avoid leaks or repeat sends
+        recipients = INMEM_RECIPIENTS.pop(token, [])
+        if not recipients:
+            flash("No recipients found for this session. Please try again.", "error")
+            session.clear()
+            return redirect(url_for("index"))
+
+        sent = send_emails(subject=subject, body=body, recipients=recipients)
+
+        # Clear the session since we are done
+        session.clear()
+
+        # Show confirmation page
+        return render_template(
+            "result.html",
+            subject=subject,
+            body=body,
+            recipients=recipients,
+            sent=sent,
+        )
+
+    # Fallback to form if action not recognized
+    return redirect(url_for("index"))
 
 
 @app.route("/reset")

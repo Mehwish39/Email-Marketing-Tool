@@ -22,6 +22,38 @@
 
       {% if preview %}
         <h2>Preview</h2>
+        <form method="post" action="{{ url_for('index') }}">
+          <input type="hidden" name="action" value="send" />
+
+          <label for="subject"><strong>Subject:</strong></label>
+          <input id="subject" name="subject" type="text" required value="{{ subject }}" />
+
+          <h3>Email Body</h3>
+          <textarea name="body" rows="14" class="email-body" required>{{ body }}</textarea>
+
+          <p><strong>Recipients:</strong> {{ recipients|length }}</p>
+          <details>
+            <summary>Show recipients</summary>
+            <ul class="recipients">
+              {% for e in recipients %}
+                <li>{{ e }}</li>
+              {% endfor %}
+            </ul>
+          </details>
+
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <!-- Save edits and keep preview on screen -->
+            <button type="submit" name="action" value="update" class="btn btn-secondary">Update Preview</button>
+            <!-- Approve and send edited content -->
+            <button type="submit" name="action" value="send" class="btn">Approve and Send</button>
+          </div>
+        </form>
+
+        <p style="margin-top:12px;">
+          Not happy with this email?
+          <a class="btn" href="{{ url_for('reset') }}">Start over</a>
+        </p>
+        <!-- <h2>Preview</h2>
         <p><strong>Subject:</strong> {{ subject }}</p>
         <h3>Email Body</h3>
         <pre class="email-body">{{ body }}</pre>
@@ -36,17 +68,17 @@
           </ul>
         </details>
 
-        <!-- Approve and send -->
+        Approve and send
         <form method="post">
           <input type="hidden" name="action" value="send" />
           <button type="submit" class="btn">Approve and Send</button>
         </form>
 
-        <!-- Try again -->
+        Try again
         <p style="margin-top:12px;">
           Not happy with this email?
           <a class="btn" href="{{ url_for('reset') }}">Try again</a>
-        </p>
+        </p> -->
 
       {% else %}
         <p>Please enter a short description of the product you would like to write an Email.</p>

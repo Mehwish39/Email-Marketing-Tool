@@ -23,8 +23,6 @@
       {% if preview %}
         <h2>Preview</h2>
         <form method="post" action="{{ url_for('index') }}">
-          <input type="hidden" name="action" value="send" />
-
           <label for="subject"><strong>Subject:</strong></label>
           <input id="subject" name="subject" type="text" required value="{{ subject }}" />
 
@@ -42,8 +40,6 @@
           </details>
 
           <div style="display:flex; gap:8px; margin-top:12px;">
-            <!-- Save edits and keep preview on screen -->
-            <button type="submit" name="action" value="update" class="btn btn-secondary">Update Preview</button>
             <!-- Approve and send edited content -->
             <button type="submit" name="action" value="send" class="btn">Approve and Send</button>
           </div>

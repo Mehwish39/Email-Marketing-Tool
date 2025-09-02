@@ -21,3 +21,14 @@ uploads/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Databases
+app.db
+*.db
+
+instance/
+.flaskenv
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage

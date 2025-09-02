@@ -2,6 +2,10 @@ import os
 from uuid import uuid4
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
+from flask_login import LoginManager, login_required, current_user
+from models import db, User
+from auth import auth_bp
+
 from utils.email_utils import generate_email            # must return (subject, body)
 from utils.send_email import read_emails, send_emails   # read_emails must accept file-like objects
 
@@ -14,11 +18,29 @@ except Exception:
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+with app.app_context():
+    db.create_all()
+
+login_manager = LoginManager()
+login_manager.login_view = "auth.login"
+login_manager.init_app(app)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+app.register_blueprint(auth_bp)
+
 # In-memory store of recipient lists keyed by a short token
 INMEM_RECIPIENTS = {}
 
 
 @app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
     """
     GET:
@@ -154,6 +176,7 @@ def index():
 
 
 @app.route("/reset")
+@login_required
 def reset():
     """Clear any stored data and return to the form."""
     token = session.get("recipients_token")

@@ -1,94 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Email Marketing Tool</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
-  </head>
-  <body>
-    <div class="container">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Marketing Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
       <h1>Email Marketing Tool</h1>
-      <p style="text-align:right;">
+      <div class="nav">
         {% if current_user.is_authenticated %}
-          Signed in as {{ current_user.name or (current_user.email|split('@')|first)|capitalize }} |
-          <a href="{{ url_for('history') }}">History</a> |
+          <span class="badge">Signed in as {{ current_user.name or (current_user.email.split('@')[0]|capitalize) }}</span>
+          <a href="{{ url_for('history') }}">History</a>
           <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
-          <a href="{{ url_for('auth.login') }}">Login</a> |
+          <a href="{{ url_for('auth.login') }}">Login</a>
           <a href="{{ url_for('auth.signup') }}">Sign up</a>
         {% endif %}
-      </p>
-
-      {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-      <div class="messages">
-        {% for category, message in messages %}
-        <div class="message {{ category }}">{{ message }}</div>
-        {% endfor %}
       </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="messages">
+          {% for category, message in messages %}
+            <div class="message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
       {% endif %}
-      {% endwith %}
+    {% endwith %}
 
-      {% if preview %}
-        <h2>Preview</h2>
+    {% if preview %}
+      <h2>Preview and approve</h2>
 
-        <!-- Approve form: subject + body are editable -->
-        <form method="post" action="{{ url_for('index') }}" style="margin-bottom:16px;">
-          <label for="subject"><strong>Subject:</strong></label>
+      <div class="grid-2">
+        <!-- Left: editable email -->
+        <form method="post" action="{{ url_for('index') }}">
+          <input type="hidden" name="action" value="send" />
+
+          <label for="subject"><strong>Subject</strong> <small id="scount" class="hint"></small></label>
           <input id="subject" name="subject" type="text" required value="{{ subject }}" />
 
-          <h3>Email Body</h3>
+          <h3>Email body</h3>
           <textarea name="body" rows="14" class="email-body" required>{{ body }}</textarea>
 
-          <div style="display:flex; gap:8px; margin-top:12px;">
-            <!-- Approve and send edited content -->
-            <button type="submit" name="action" value="send" class="btn">Approve and Send</button>
+          <div class="row">
+            <button type="submit" class="btn">Approve and send</button>
+            <a class="btn btn-secondary" href="{{ url_for('reset') }}">Start over</a>
           </div>
         </form>
 
-        <!-- Recipient manager: remove one or more before sending -->
-        <section>
-          <p><strong>Recipients:</strong> {{ recipients|length }}</p>
-          <form method="post" action="{{ url_for('index') }}">
-            <input type="hidden" name="action" value="remove" />
-            <details open>
-              <summary>Manage recipients</summary>
-              <ul class="recipients">
+        <!-- Right: recipients manager -->
+        <div>
+          <h3>Recipients</h3>
+          <div class="recipients-wrap">
+            <div class="recipients-head">
+              <strong>Total: {{ recipients|length }}</strong>
+              <div class="recipients-tools">
+                <input type="text" id="rfilter" placeholder="Filter emails..." />
+                <button id="selectAll" class="btn btn-secondary" type="button">Select all</button>
+                <button id="clearAll" class="btn btn-secondary" type="button">Clear</button>
+              </div>
+            </div>
+            <form method="post" action="{{ url_for('index') }}">
+              <input type="hidden" name="action" value="remove" />
+              <ul id="rlist" class="recipients-list">
                 {% for e in recipients %}
                   <li>
                     <label>
                       <input type="checkbox" name="remove[]" value="{{ e }}" />
-                      {{ e }}
+                      <span>{{ e }}</span>
                     </label>
                   </li>
                 {% endfor %}
               </ul>
-            </details>
-            <button type="submit" class="btn btn-secondary" style="margin-top:8px;">Remove selected</button>
-          </form>
-        </section>
+              <div class="row" style="padding:10px 12px;">
+                <button type="submit" class="btn btn-secondary">Remove selected</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
 
-        <p style="margin-top:12px;">
-          Not happy with this email?
-          <a class="btn" href="{{ url_for('reset') }}">Start over</a>
-        </p>
+      <script>
+        // subject counter
+        const s = document.getElementById('subject');
+        const sc = document.getElementById('scount');
+        function updateCount(){ sc.textContent = '(' + s.value.length + ' chars)'; }
+        s && (s.addEventListener('input', updateCount), updateCount());
 
-      {% else %}
-        <p>Please enter a short description of the product you would like to write an Email.</p>
+        // select all / clear
+        const rlist = document.getElementById('rlist');
+        document.getElementById('selectAll')?.addEventListener('click', () =>
+          rlist.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = true));
+        document.getElementById('clearAll')?.addEventListener('click', () =>
+          rlist.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false));
 
-        <form action="{{ url_for('index') }}" method="post" enctype="multipart/form-data">
-          <input type="hidden" name="action" value="generate" />
-          <label for="prompt">Email prompt:</label><br />
-          <textarea id="prompt" name="prompt" rows="5"
-            placeholder="Describe what the email should be about..." required></textarea><br />
+        // filter
+        const rfilter = document.getElementById('rfilter');
+        rfilter?.addEventListener('input', () => {
+          const q = rfilter.value.toLowerCase();
+          rlist.querySelectorAll('li').forEach(li => {
+            const v = li.textContent.toLowerCase();
+            li.style.display = v.includes(q) ? '' : 'none';
+          });
+        });
+      </script>
 
-          <label for="csv_file">CSV file of email addresses:</label><br />
-          <input type="file" id="csv_file" name="csv_file" accept=".csv" required />
-          <br />
-          <button type="submit" class="btn">Generate Preview</button>
-        </form>
-      {% endif %}
-    </div>
-  </body>
+    {% else %}
+      <h2>Create a new email</h2>
+      <p>Please enter a short description of the product you would like to write an email.</p>
+
+      <form action="{{ url_for('index') }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="generate" />
+
+        <label for="prompt"><strong>Email prompt</strong></label>
+        <textarea id="prompt" name="prompt" rows="5" placeholder="Describe what the email should be about..." required></textarea>
+
+        <label for="csv_file"><strong>CSV file of email addresses</strong></label>
+        <input type="file" id="csv_file" name="csv_file" accept=".csv" required />
+
+        <div class="row">
+          <button type="submit" class="btn">Generate preview</button>
+        </div>
+        <small class="hint">Tip: CSV with one column named "email" or a single column of addresses.</small>
+      </form>
+    {% endif %}
+  </div>
+</body>
 </html>

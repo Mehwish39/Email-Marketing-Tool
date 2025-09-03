@@ -9,8 +9,8 @@
   <div class="container">
     <div class="topbar">
       <h1>Sent history</h1>
-      <div class="badge">
-        <a href="{{ url_for('index') }}">Home</a> &nbsp;|&nbsp;
+      <div class="nav">
+        <a href="{{ url_for('index') }}">Home</a>
         <a href="{{ url_for('auth.logout') }}">Logout</a>
       </div>
     </div>
@@ -43,27 +43,27 @@
 
     <p style="margin-top:6px;">Total matches: <strong>{{ total }}</strong></p>
 
-    <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+    <table>
       <thead>
         <tr>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #333;">When</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #333;">Recipient</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #333;">Status</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid #333;">Subject</th>
+          <th>When</th>
+          <th>Recipient</th>
+          <th>Status</th>
+          <th>Subject</th>
         </tr>
       </thead>
       <tbody>
         {% for r in rows %}
         <tr>
-          <td style="padding:8px; border-bottom:1px solid #222;">{{ r.sent_at }}</td>
-          <td style="padding:8px; border-bottom:1px solid #222;">{{ r.recipient }}</td>
-          <td style="padding:8px; border-bottom:1px solid #222;">
+          <td>{{ r.sent_at }}</td>
+          <td>{{ r.recipient }}</td>
+          <td>
             <span class="message {{ 'success' if r.status=='sent' else 'error' }}" style="display:inline-block; padding:2px 8px;">
               {{ r.status }}
             </span>
             {% if r.error %}<small class="hint"> {{ r.error }}</small>{% endif %}
           </td>
-          <td style="padding:8px; border-bottom:1px solid #222;">{{ r.subject }}</td>
+          <td>{{ r.subject }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -71,7 +71,7 @@
 
     {% set next_page = page + 1 %}
     {% set prev_page = page - 1 %}
-    <div class="row" style="margin-top:12px;">
+    <div class="row">
       {% if prev_page >= 1 %}
         <a class="btn btn-secondary" href="{{ url_for('history', q=q, status=status, start=start, end=end, page=prev_page) }}">Prev</a>
       {% endif %}

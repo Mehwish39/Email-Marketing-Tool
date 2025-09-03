@@ -40,14 +40,22 @@ def _make_msg(to_email: str, subject: str, body: str) -> EmailMessage:
     msg.set_content(body)
     return msg
 
-def send_emails(subject: str, body: str, recipients: list[str]) -> int:
-    count = 0
+def send_emails(subject: str, body: str, recipients: list[str]):
+    """
+    Returns:
+      [{"to": "a@x.com", "ok": True, "error": None}, {"to": "b@x.com", "ok": False, "error": "smtp error"}]
+    """
+    results = []
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(EMAIL_ADDRESS, APP_PASSWORD)
         for to in recipients:
-            smtp.send_message(_make_msg(to, subject, body))
-            count += 1
-    return count
+            try:
+                msg = _make_msg(to, subject, body)
+                smtp.send_message(msg)
+                results.append({"to": to, "ok": True, "error": None})
+            except Exception as e:
+                results.append({"to": to, "ok": False, "error": str(e)})
+    return results
 
 def send_from_csv_source(subject: str, body: str, source: Any) -> int:
     recipients = read_emails(source)

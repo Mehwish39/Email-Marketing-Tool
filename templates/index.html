@@ -12,6 +12,7 @@
       <p style="text-align:right;">
         {% if current_user.is_authenticated %}
           Signed in as {{ current_user.name or (current_user.email|split('@')|first)|capitalize }} |
+          <a href="{{ url_for('history') }}">History</a> |
           <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
           <a href="{{ url_for('auth.login') }}">Login</a> |

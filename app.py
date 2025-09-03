@@ -1,9 +1,11 @@
 import os
 from uuid import uuid4
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from datetime import datetime
+from sqlalchemy import or_, func
 
 from flask_login import LoginManager, login_required, current_user
-from models import db, User
+from models import db, User, SentEmail
 from auth import auth_bp
 
 from utils.email_utils import generate_email            # must return (subject, body)
@@ -157,19 +159,36 @@ def index():
             session.clear()
             return redirect(url_for("index"))
 
-        sent = send_emails(subject=subject, body=body, recipients=recipients)
+        # Send and get per-recipient outcomes
+        results = send_emails(subject=subject, body=body, recipients=recipients)
+
+        # Save a row per recipient in the DB
+        for r in results:
+            db.session.add(SentEmail(
+                user_id=current_user.id,
+                recipient=r["to"],
+                subject=subject,
+                body=body,
+                status="sent" if r["ok"] else "failed",
+                error=r["error"]
+            ))
+        db.session.commit()
 
         # Clear the session since we are done
         session.clear()
 
-        # Show confirmation page
+        # Optional: count successes to show on the result page
+        sent_count = sum(1 for r in results if r["ok"])
+
+        # Render the confirmation page
         return render_template(
             "result.html",
             subject=subject,
             body=body,
             recipients=recipients,
-            sent=sent,
+            sent=sent_count,
         )
+
 
     # Fallback to form if action not recognized
     return redirect(url_for("index"))
@@ -184,6 +203,53 @@ def reset():
         INMEM_RECIPIENTS.pop(token, None)
     session.clear()
     return redirect(url_for("index"))
+
+@app.route("/history")
+@login_required
+def history():
+    q = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "all").lower()  # all | sent | failed
+    start = (request.args.get("start") or "").strip()       # YYYY-MM-DD
+    end = (request.args.get("end") or "").strip()           # YYYY-MM-DD
+    page = int(request.args.get("page", 1))
+    page_size = 25
+
+    query = SentEmail.query.filter(SentEmail.user_id == current_user.id)
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(SentEmail.recipient.ilike(like),
+                SentEmail.subject.ilike(like),
+                SentEmail.body.ilike(like))
+        )
+
+    if status in ("sent", "failed"):
+        query = query.filter(SentEmail.status == status)
+
+    # date filters (inclusive)
+    def parse_date(s):
+        try:
+            return datetime.fromisoformat(s).date()
+        except Exception:
+            return None
+
+    s_date = parse_date(start)
+    e_date = parse_date(end)
+    if s_date:
+        query = query.filter(func.date(SentEmail.sent_at) >= s_date.isoformat())
+    if e_date:
+        query = query.filter(func.date(SentEmail.sent_at) <= e_date.isoformat())
+
+    total = query.count()
+    rows = (query.order_by(SentEmail.id.desc())
+                 .offset((page - 1) * page_size)
+                 .limit(page_size)
+                 .all())
+
+    return render_template("history.html",
+                           rows=rows, total=total, page=page, page_size=page_size,
+                           q=q, status=status, start=start, end=end)
 
 
 if __name__ == "__main__":
